@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "Represents an organization user",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "orgName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email"]
+    },
+    "auditRecord": {
+      "title": "Audit Record",
+      "description": "Metadata about a completed audit",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "datasetName": { "type": "string" },
+        "score": { "type": "number" },
+        "riskLevel": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "datasetName", "score"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "User profiles"
+    },
+    "/audits/{auditId}": {
+      "schema": "auditRecord",
+      "description": "Audit history"
+    }
+  }
+}

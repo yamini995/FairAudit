@@ -1,0 +1,6 @@
+{
+  "name": "FairAudit",
+  "description": "A clear, accessible solution to thoroughly inspect datasets and software models for hidden unfairness or discrimination.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
