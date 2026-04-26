@@ -172,31 +172,53 @@ export function runBiasAudit(data: Row[], config: AuditConfig): AuditResult {
   const riskLevel = score > 60 ? 'high' : score > 30 ? 'medium' : 'low';
   let verdict = `Your data shows a ${minDir < 1 ? (1 / minDir).toFixed(1) : 1}× disparity in positive outcomes for protected groups.`;
   
-  // Calculate specific metrics requested by user
+  // calculate specific metrics requested by user
   const primaryAttr = config.protectedAttributes[0];
   const groups = Array.from(new Set(data.map(r => String(r[primaryAttr]))));
   const stats = groups.map(group => {
     const groupRows = data.filter(r => String(r[primaryAttr]) === group);
     const groupPositive = groupRows.filter(r => String(r[config.outcomeColumn]) === String(config.positiveValue));
+    
+    // Simple ground truth proxy for EOD (Equalized Odds)
+    // We assume the "actual" quality is correlated with features
+    let actualPositives = 0;
+    let truePositives = 0;
+    
+    groupRows.forEach(row => {
+      // Synthetic ground truth based on features (Simple threshold)
+      const featureScore = config.featureColumns.reduce((acc, feat) => acc + (Number(row[feat]) || 0), 0);
+      const isQualified = featureScore > 0 ? true : Math.random() > 0.5; // Rough quality estimate
+      
+      if (isQualified) {
+        actualPositives++;
+        if (String(row[config.outcomeColumn]) === String(config.positiveValue)) {
+          truePositives++;
+        }
+      }
+    });
+
     return {
       group,
       total: groupRows.length,
       approvals: groupPositive.length,
-      rate: groupRows.length > 0 ? groupPositive.length / groupRows.length : 0
+      rate: groupRows.length > 0 ? groupPositive.length / groupRows.length : 0,
+      actualPositives,
+      truePositives,
+      tpr: actualPositives > 0 ? truePositives / actualPositives : 0
     };
   }).sort((a, b) => b.rate - a.rate);
 
   const advantaged = stats[0];
   const disadvantaged = stats[stats.length - 1];
 
+  // Formula 1 — Demographic Parity Difference
   const dpd = Math.abs(advantaged.rate - disadvantaged.rate);
+  
+  // Formula 2 — Disparate Impact Ratio
   const dir = advantaged.rate > 0 ? disadvantaged.rate / advantaged.rate : 1;
 
-  // Simulate predicted labels for EOD (Simple threshold model)
-  // We'll assume a "predicted" value that is somewhat biased already
-  const tprA = advantaged.rate * 0.95; // Simulated TPR for advantaged
-  const tprB = disadvantaged.rate * 0.85; // Simulated TPR for disadvantaged (higher miss rate)
-  const eod = Math.abs(tprA - tprB);
+  // Formula 3 — Equalized Odds Difference
+  const eod = Math.abs(advantaged.tpr - disadvantaged.tpr);
 
   return {
     config,
